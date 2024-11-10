@@ -58,7 +58,7 @@ class TukangKomik : MangaThemesia(
         val tsReader = json.decodeFromString<TSReader>(jsonString)
         val imageUrls = tsReader.sources.firstOrNull()?.images ?: return emptyList()
 
-        // Menggunakan URL resize
+        // Menggunakan URL resiz
         val resizeServiceUrl = getResizeServiceUrl()
         return imageUrls.mapIndexed { index, imageUrl -> 
             Page(index, document.location(), "${resizeServiceUrl ?: ""}$imageUrl")
