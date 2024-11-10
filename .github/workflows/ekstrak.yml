@@ -23,8 +23,8 @@ jobs:
       - name: Install unzip (if needed)
         run: sudo apt-get install unzip -y
 
-      - name: Unpack specified zip file to target directory
-        run: unzip ${{ github.event.inputs.zip_file }} -d ${{ github.event.inputs.extract_to }}
+            - name: Unpack specified zip file to target directory
+        run: unzip -o ${{ github.event.inputs.zip_file }} -d ${{ github.event.inputs.extract_to }}
 
       - name: List extracted files for verification
         run: ls -R ${{ github.event.inputs.extract_to }}
