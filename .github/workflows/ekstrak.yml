@@ -6,11 +6,11 @@ on:
       zip_file:
         description: 'Nama file zip yang akan diekstrak'
         required: true
-        default: 'nama_file.zip'
+        default: '.zip'
       extract_to:
         description: 'Tujuan direktori ekstrak'
         required: true
-        default: 'src/id/tujuan_ekstrak/'
+        default: 'src/id/'
 
 jobs:
   unpack:
