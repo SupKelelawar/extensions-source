@@ -3,7 +3,6 @@ package eu.kanade.tachiyomi.extension.id.ngomikid
 import android.app.Application
 import androidx.preference.EditTextPreference
 import androidx.preference.PreferenceScreen
-import eu.kanade.tachiyomi.lib.domain.Domain
 import eu.kanade.tachiyomi.multisrc.mangathemesia.MangaThemesia
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.interceptor.rateLimit
