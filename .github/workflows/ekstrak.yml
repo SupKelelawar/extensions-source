@@ -45,6 +45,6 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add ${{ github.event.inputs.extract_to }}
+          git add -A  # Tambahkan semua perubahan, termasuk file yang dihapus
           git commit -m "Add extracted files from ${{ github.event.inputs.zip_file }}"
           git push
