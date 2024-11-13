@@ -11,6 +11,10 @@ on:
         description: 'Tujuan direktori ekstrak'
         required: true
         default: 'src/id/'
+      custom_message:
+        description: 'Pesan tambahan untuk komit (opsional)'
+        required: false
+        default: ''  # Defaultnya adalah string kosong jika tidak ada pesan tambahan
 
 jobs:
   unpack:
@@ -45,6 +49,6 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A  # Tambahkan semua perubahan, termasuk file yang dihapus
-          git commit -m "Add extracted files from ${{ github.event.inputs.zip_file }}"
+          git add -A
+          git commit -m "${{ github.event.inputs.custom_message }} Add extracted files from ${{ github.event.inputs.zip_file }}"
           git push
