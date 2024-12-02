@@ -26,7 +26,7 @@ class SirenKomik :
 
     override val seriesTitleSelector = "h1.judul-komik"
     override val seriesThumbnailSelector = ".gambar-kecil img"
-    override val seriesAuthorSelector = ".keterangan-komik:contains(author) span"
+    override val seriesAuthorSelector = ".keterangan-komik:contains(Penulis) span"
     override val seriesArtistSelector = ".keterangan-komik:contains(artist) span"
 
     override fun chapterListSelector() = ".list-chapter a"
