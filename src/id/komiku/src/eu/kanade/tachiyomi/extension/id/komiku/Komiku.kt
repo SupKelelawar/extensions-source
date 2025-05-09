@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.extension.id.komiku
 
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.asJsoup
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.Page
@@ -15,6 +14,7 @@ import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import org.jsoup.Jsoup
 import java.util.Locale
 
 class Komiku : ParsedHttpSource() {
@@ -47,14 +47,21 @@ class Komiku : ParsedHttpSource() {
     override fun popularMangaFromElement(element: Element): SManga {
     val manga = SManga.create()
 
-    val mangaUrl = element.select("a:has(h3)").attr("href")
+    // Ambil URL dan judul dari elemen list
+    val url = element.select("a:has(h3)").attr("href")
+    manga.setUrlWithoutDomain(url)
     manga.title = element.select("h3").text().trim()
-    manga.setUrlWithoutDomain(mangaUrl)
 
-    // Ambil cover dari halaman detail
-    val detailDoc = client.newCall(GET(mangaUrl, headers)).execute().use { it.asJsoup() }
-    val coverUrl = detailDoc.select("div.ims img").attr("abs:src")
-    manga.thumbnail_url = coverUrl
+    // Request halaman detail dan parse manual dengan Jsoup
+    val detailDoc = client.newCall(GET(url, headers))
+        .execute().use { response ->
+            Jsoup.parse(response.body!!.string())
+        }
+
+    // Ambil cover dari <div class="ims"><img src="...">
+    manga.thumbnail_url = detailDoc
+        .selectFirst("div.ims img")
+        ?.absUrl("src")
 
     return manga
 }
