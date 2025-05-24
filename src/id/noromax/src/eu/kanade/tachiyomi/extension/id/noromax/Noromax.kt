@@ -11,7 +11,16 @@ import eu.kanade.tachiyomi.source.model.SManga
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import uy.kohesive.injekt.Injekt
-import uy.kohes dateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale("id"))
+import uy.kohesive.injekt.api.get
+import java.text.SimpleDateFormat
+import java.util.Locale
+
+class Noromax : MangaThemesia(
+    "Noromax",
+    "https://ngomik.org",
+    "id",
+    "/manga",
+    dateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale("id"))
 ), ConfigurableSource {
 
     private val preferences = Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
@@ -28,13 +37,21 @@ import uy.kohes dateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale("id"))
 
     // Untuk menyesuaikan thumbnail di hasil pencarian
     override fun searchMangaFromElement(element: Element): SManga {
-    return SManga.create().apply {
-        val originalThumbnailUrl = element.select("img").imgAttr()
-        thumbnail_url = "${getResizeServiceUrl() ?: ""}$originalThumbnailUrl"
-        title = element.select("a").attr("title")
-        setUrlWithoutDomain(element.select("a").attr("href"))
+        return SManga.create().apply {
+            val originalThumbnailUrl = element.select("img").imgAttr()
+            thumbnail_url = "${getResizeServiceUrl() ?: ""}$originalThumbnailUrl"
+            title = element.select("a").attr("title")
+            setUrlWithoutDomain(element.select("a").attr("href"))
+        }
     }
-}
+
+    // Untuk menyesuaikan thumbnail di halaman detail manga
+    override fun mangaDetailsParse(document: Document) = super.mangaDetailsParse(document).apply {
+        val seriesDetails = document.select(seriesThumbnailSelector)
+        val originalThumbnailUrl = seriesDetails.imgAttr()
+        thumbnail_url = "${getResizeServiceUrl() ?: ""}$originalThumbnailUrl"
+        title = document.selectFirst(seriesThumbnailSelector)!!.attr("title")
+    }
 
     override fun pageListParse(document: Document): List<Page> {
     val resizeServiceUrl = getResizeServiceUrl()
@@ -46,7 +63,16 @@ import uy.kohes dateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale("id"))
     }
 }
 
-    override fun setupPreferenceScreen(screen: PreferenceScreen) {
+        override fun setupPreferenceScreen(screen: PreferenceScreen) {
+        val resizeServicePref = EditTextPreference(screen.context).apply {
+            key = "resize_service_url"
+            title = "Resize Service URL"
+            summary = "Masukkan URL layanan resize gambar."
+            setDefaultValue(null)
+            dialogTitle = "Resize Service URL"
+        }
+        screen.addPreference(resizeServicePref)
+
         // Preference untuk mengubah base URL
         val baseUrlPref = EditTextPreference(screen.context).apply {
             key = BASE_URL_PREF
@@ -60,7 +86,7 @@ import uy.kohes dateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale("id"))
                 val newUrl = newValue as String
                 baseUrl = newUrl
                 preferences.edit().putString(BASE_URL_PREF, newUrl).apply()
-                summary = "Current domain: $newUrl"
+                summary = "Current domain: $newUrl" // Update summary untuk domain yang baru
                 true
             }
         }
