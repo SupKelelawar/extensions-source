@@ -11,16 +11,7 @@ import eu.kanade.tachiyomi.source.model.SManga
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import java.text.SimpleDateFormat
-import java.util.Locale
-
-class Noromax : MangaThemesia(
-    "Noromax",
-    "https://ngomik.org",
-    "id",
-    "/manga",
-    dateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale("id"))
+import uy.kohes dateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale("id"))
 ), ConfigurableSource {
 
     private val preferences = Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
@@ -37,36 +28,25 @@ class Noromax : MangaThemesia(
 
     // Untuk menyesuaikan thumbnail di hasil pencarian
     override fun searchMangaFromElement(element: Element): SManga {
-        return SManga.create().apply {
-            val originalThumbnailUrl = element.select("img").imgAttr()
-            thumbnail_url = "${getResizeServiceUrl() ?: ""}$originalThumbnailUrl"
-            title = element.select("a").attr("title")
-            setUrlWithoutDomain(element.select("a").attr("href"))
-        }
-    }
-
-    // Untuk menyesuaikan thumbnail di halaman detail manga
-    override fun mangaDetailsParse(document: Document) = super.mangaDetailsParse(document).apply {
-        val seriesDetails = document.select(seriesThumbnailSelector)
-        val originalThumbnailUrl = seriesDetails.imgAttr()
+    return SManga.create().apply {
+        val originalThumbnailUrl = element.select("img").imgAttr()
         thumbnail_url = "${getResizeServiceUrl() ?: ""}$originalThumbnailUrl"
-        title = document.selectFirst(seriesThumbnailSelector)!!.attr("title")
+        title = element.select("a").attr("title")
+        setUrlWithoutDomain(element.select("a").attr("href"))
     }
+}
 
-    // MENYEDERHANAKAN PAGE LIST PARSE LANGSUNG DARI #readerarea img & filter 999.png
     override fun pageListParse(document: Document): List<Page> {
-        val resizeServiceUrl = getResizeServiceUrl()
-        val imageElements = document.select("#readerarea img")
-        return imageElements.mapNotNullIndexed { index, element ->
-            val imageUrl = element.absUrl("src")
-            if (imageUrl.endsWith("999.png")) null
-            else Page(index, document.location(), "${resizeServiceUrl ?: ""}$imageUrl")
-        }
+    val resizeServiceUrl = getResizeServiceUrl()
+    val imageElements = document.select("#readerarea img")
+    return imageElements.mapIndexedNotNull { index, element ->
+        val imageUrl = element.absUrl("src")
+        if (imageUrl.endsWith("999.png")) null
+        else Page(index, document.location(), "${resizeServiceUrl ?: ""}$imageUrl")
     }
+}
 
-    override fun setupPreferenceScreen(screen:ServicePref)
-       {
-
+    override fun setupPreferenceScreen(screen: PreferenceScreen) {
         // Preference untuk mengubah base URL
         val baseUrlPref = EditTextPreference(screen.context).apply {
             key = BASE_URL_PREF
