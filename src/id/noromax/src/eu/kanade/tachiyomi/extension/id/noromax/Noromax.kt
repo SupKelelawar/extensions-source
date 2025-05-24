@@ -16,8 +16,8 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 
 class Noromax : MangaThemesia(
-    "Kiryuu",
-    "https://kiryuu01.com",
+    "Noromax",
+    "https://ngomik.org",
     "id",
     "/manga",
     dateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale("id"))
