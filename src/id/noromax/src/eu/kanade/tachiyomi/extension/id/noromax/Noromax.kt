@@ -65,6 +65,7 @@ class Noromax : MangaThemesia(
     }
 
     override fun setupPreferenceScreen(screen:ServicePref)
+       {
 
         // Preference untuk mengubah base URL
         val baseUrlPref = EditTextPreference(screen.context).apply {
