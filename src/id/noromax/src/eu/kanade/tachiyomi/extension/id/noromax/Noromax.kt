@@ -35,23 +35,24 @@ class Noromax : MangaThemesia(
         .rateLimit(4)
         .build()
 
-    // Untuk menyesuaikan thumbnail di hasil pencarian
-    override fun searchMangaFromElement(element: Element): SManga {
-        return SManga.create().apply {
-            val originalThumbnailUrl = element.select("img").imgAttr()
-            thumbnail_url = "${getResizeServiceUrl() ?: ""}$originalThumbnailUrl"
-            title = element.select("a").attr("title")
-            setUrlWithoutDomain(element.select("a").attr("href"))
-        }
-    }
+    private val Cover = "https://"
 
-    // Untuk menyesuaikan thumbnail di halaman detail manga
-    override fun mangaDetailsParse(document: Document) = super.mangaDetailsParse(document).apply {
-        val seriesDetails = document.select(seriesThumbnailSelector)
-        val originalThumbnailUrl = seriesDetails.imgAttr()
-        thumbnail_url = "${getResizeServiceUrl() ?: ""}$originalThumbnailUrl"
-        title = document.selectFirst(seriesThumbnailSelector)!!.attr("title")
+    override fun searchMangaFromElement(element: Element): SManga {
+    return SManga.create().apply {
+        val GambarOri = element.select("img").imgAttr()
+        thumbnail_url = "$Cover$GambarOri"
+        title = element.select("a").attr("title")
+        setUrlWithoutDomain(element.select("a").attr("href"))
     }
+}
+
+// Untuk thumbnail di halaman detail manga
+    override fun mangaDetailsParse(document: Document) = super.mangaDetailsParse(document).apply {
+    val seriesDetails = document.select(seriesThumbnailSelector)
+    val GambarOri = seriesDetails.imgAttr()
+    thumbnail_url = "$Cover$GambarOri"
+    title = document.selectFirst(seriesThumbnailSelector)!!.attr("title")
+}
 
     override fun pageListParse(document: Document): List<Page> {
     val resizeServiceUrl = getResizeServiceUrl()
@@ -73,31 +74,22 @@ class Noromax : MangaThemesia(
         }
         screen.addPreference(resizeServicePref)
 
-        // Preference untuk mengubah base URL
         val baseUrlPref = EditTextPreference(screen.context).apply {
-            key = BASE_URL_PREF
-            title = BASE_URL_PREF_TITLE
-            summary = BASE_URL_PREF_SUMMARY
+            key = "overrideBaseUrl"
+            title = "Ubah Domain"
+            summary = "Update domain untuk ekstensi ini"
             setDefaultValue(baseUrl)
-            dialogTitle = BASE_URL_PREF_TITLE
+            dialogTitle = "Ubah Domain"
             dialogMessage = "Original: $baseUrl"
 
-            setOnPreferenceChangeListener { _, newValue ->
+    setOnPreferenceChangeListener { _, newValue ->
                 val newUrl = newValue as String
                 baseUrl = newUrl
-                preferences.edit().putString(BASE_URL_PREF, newUrl).apply()
+                preferences.edit().putString("overrideBaseUrl", newUrl).apply()
                 summary = "Current domain: $newUrl" // Update summary untuk domain yang baru
                 true
             }
         }
         screen.addPreference(baseUrlPref)
     }
-
-    companion object {
-        private const val BASE_URL_PREF_TITLE = "Ubah Domain"
-        private const val BASE_URL_PREF = "overrideBaseUrl"
-        private const val BASE_URL_PREF_SUMMARY = "Update domain untuk ekstensi ini"
-    }
-
-    override val hasProjectPage = true
 }
