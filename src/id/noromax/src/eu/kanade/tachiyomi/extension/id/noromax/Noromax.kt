@@ -29,7 +29,7 @@ class Noromax : MangaThemesia(
         return preferences.getString("resize_service_url", null)
     }
 
-    override var baseUrl = preferences.getString("overrideBaseUr"l, super.baseUrl)!!
+    override var baseUrl = preferences.getString("overrideBaseUr", super.baseUrl)!!
 
     override val client = super.client.newBuilder()
         .rateLimit(4)
