@@ -20,7 +20,7 @@ class Noromax : MangaThemesia(
     "https://ngomik.org",
     "id",
     "/manga",
-    dateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale("id"))
+    dateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale.US)
 ), ConfigurableSource {
 
     private val preferences = Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
