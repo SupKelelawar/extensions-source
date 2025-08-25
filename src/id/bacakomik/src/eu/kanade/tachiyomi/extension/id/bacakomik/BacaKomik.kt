@@ -58,6 +58,7 @@ class BacaKomik : ParsedHttpSource() {
     manga.setUrlWithoutDomain(element.select("div.animposx > a").first()!!.attr("href"))
     manga.title = element.select(".animposx .tt h4").text()
     manga.thumbnail_url = element.selectFirst("div.limit img")?.attr("src") ?: ""
+
     return manga
 }
 
