@@ -54,13 +54,12 @@ class BacaKomik : ParsedHttpSource() {
     override fun searchMangaNextPageSelector() = popularMangaNextPageSelector()
 
     override fun searchMangaFromElement(element: Element): SManga {
-        val manga = SManga.create()
-        manga.setUrlWithoutDomain(element.select("div.animposx > a").first()!!.attr("href"))
-        manga.title = element.select(".animposx .tt h4").text()
-        manga.thumbnail_url = element.select("div.limit img").imgAttr()
-
-        return manga
-    }
+    val manga = SManga.create()
+    manga.setUrlWithoutDomain(element.select("div.animposx > a").first()!!.attr("href"))
+    manga.title = element.select(".animposx .tt h4").text()
+    manga.thumbnail_url = element.selectFirst("div.limit img")?.attr("src") ?: ""
+    return manga
+}
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val builtUrl = if (page == 1) "$baseUrl/daftar-komik/" else "$baseUrl/daftar-komik/page/$page/?order="
