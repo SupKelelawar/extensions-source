@@ -13,7 +13,7 @@ on:
         required: true
       git-repo:
         description: Git repo (Optional, defaults to <your name>/aniyomi-extensions
-        default: ''
+        default: 'nama_akun/extensions-source'
         required: false
       git-ref:
         description: Git Ref (Optional, defaults to master)
