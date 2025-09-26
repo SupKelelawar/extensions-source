@@ -1,0 +1,7 @@
+ext {
+    extName = 'KomikAV'
+    extClass = '.KomikAV'
+    extVersionCode = 1
+}
+
+apply from: "$rootDir/common.gradle"
