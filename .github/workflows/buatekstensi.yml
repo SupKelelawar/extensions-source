@@ -11,10 +11,6 @@ on:
         description: Target extension name
         default: ''
         required: true
-      git-repo:
-        description: Git repo (Optional, defaults to your_account/extensions-source)
-        default: ''
-        required: false
       git-ref:
         description: Git Ref (Optional, defaults to main)
         default: 'main'
@@ -23,27 +19,13 @@ on:
 env:
   EXTPATH: ${{ github.event.inputs.lang }}/${{ github.event.inputs.extension }}
   EXTSLUG: ${{ github.event.inputs.lang }}:${{ github.event.inputs.extension }}
+  REPO: ${{ github.actor }}/extensions-source
 
 jobs:
   build-extension:
     name: Build a single extension
     runs-on: ubuntu-latest
     steps:
-      - name: Set repository name
-        id: set-repo
-        run: |
-          if [ -z "${{ github.event.inputs.git-repo }}" ]; then
-            REPO="${{ github.actor }}/extensions-source"
-            echo "repo=$REPO" >> $GITHUB_OUTPUT
-            echo "REPO=$REPO" >> $GITHUB_ENV
-            echo "Using default repository: $REPO"
-          else
-            REPO="${{ github.event.inputs.git-repo }}"
-            echo "repo=$REPO" >> $GITHUB_OUTPUT
-            echo "REPO=$REPO" >> $GITHUB_ENV
-            echo "Using custom repository: $REPO"
-          fi
-
       - name: Clone Repository (Latest)
         uses: actions/checkout@v4
         with:
