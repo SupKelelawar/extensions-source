@@ -235,8 +235,8 @@ class KomikavNet : ParsedHttpSource(), ConfigurableSource {
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         val resizeServicePref = EditTextPreference(screen.context).apply {
             key = "resize_service_url"
-            title = "Resize Service URL (Pages)"
-            summary = "Masukkan URL layanan resize gambar untuk halaman (page list)."
+            title = "Resize Service URL"
+            summary = "Masukkan URL layanan resize gambar."
             setDefaultValue(null)
             dialogTitle = "Resize Service URL"
         }
