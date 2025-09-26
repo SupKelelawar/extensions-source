@@ -1,6 +1,6 @@
 ext {
-    extName = 'KomikAV'
-    extClass = '.KomikAV'
+    extName = 'Komikavnet'
+    extClass = '.KomikavNet'
     extVersionCode = 1
 }
 
