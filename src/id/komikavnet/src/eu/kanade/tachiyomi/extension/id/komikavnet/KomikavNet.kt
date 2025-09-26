@@ -72,7 +72,7 @@ class KomikavNet : ParsedHttpSource(), ConfigurableSource {
             title = element.selectFirst("h2")?.text()?.trim().orEmpty()
 
             val imgElement = element.selectFirst("img")
-            val rawSrc = imgElement?.absUrl("src")?.trim().orEmpty()
+            val rawSrc = imgElement?.absUrl("data-src")?.trim().orEmpty()
             thumbnail_url = if (rawSrc.isNotEmpty()) rawSrc.replace("lol", "li") else ""
         }
     }
