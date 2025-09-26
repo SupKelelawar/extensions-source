@@ -13,8 +13,8 @@ on:
         required: true
       git-repo:
         description: Git repo (Optional, defaults to <your name>/aniyomi-extensions
-        default: 'nama_akun/extensions-source'
-        required: false
+        default: '${{ github.actor }}/extensions-source'
+        required: true
       git-ref:
         description: Git Ref (Optional, defaults to master)
         default: 'main'
