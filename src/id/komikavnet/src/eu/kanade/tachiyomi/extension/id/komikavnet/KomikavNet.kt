@@ -219,7 +219,7 @@ class KomikavNet : ParsedHttpSource(), ConfigurableSource {
 
     override fun pageListParse(document: Document): List<Page> {
         val service = preferences.getString("resize_service_url", "") ?: ""
-        return document.select("img")
+        return document.select("img.imgku")
         .mapIndexedNotNull {
             i, img ->
             val src = img.attr("src").trim()
