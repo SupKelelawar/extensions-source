@@ -80,6 +80,7 @@ abstract class MangaThemesia(
             summary = "Ganti domain untuk ekstensi ini"
             setDefaultValue("")
             dialogTitle = title
+            dialogMessage = "Original: $baseUrl"
         }.also(screen::addPreference)
 
         EditTextPreference(screen.context).apply {
@@ -88,7 +89,6 @@ abstract class MangaThemesia(
             summary = "Masukkan URL layanan resize gambar"
             setDefaultValue("")
             dialogTitle = title
-            dialogMessage = "Original: $baseUrl"
         }.also(screen::addPreference)
     }
 
