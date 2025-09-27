@@ -50,14 +50,12 @@ abstract class MangaThemesia(
 
     protected open val json: Json by injectLazy()
 
-    // Tambahkan preferences delegate
     private val preferences: SharedPreferences by getPreferencesLazy()
 
     override val supportsLatest = true
 
     override val client = network.cloudflareClient
 
-    // Gunakan override untuk ganti baseUrl berdasarkan preferensi
     override val baseUrl: String
         get() = preferences.getString("custom_domain", originalBaseUrl)?.trim()?.let { domain ->
             if (domain.isNotEmpty()) domain else originalBaseUrl
@@ -78,40 +76,40 @@ abstract class MangaThemesia(
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         EditTextPreference(screen.context).apply {
             key = "custom_domain"
-            title = "Custom Domain"
-            summary = "Ganti domain utama (contoh: https://mangathemesia.site ). Biarkan kosong untuk pakai default."
+            title = "Ganti Domain"
+            summary = "Ganti domain untuk ekstensi ini"
             setDefaultValue("")
+            dialogTitle = title
         }.also(screen::addPreference)
 
         EditTextPreference(screen.context).apply {
             key = "image_resize_service"
             title = "Image Resize Service"
-            summary = "Masukkan URL layanan resize (contoh: https://images.weserv.nl/?url=). Kosongkan untuk nonaktif."
+            summary = "Masukkan URL layanan resize gambar"
             setDefaultValue("")
+            dialogTitle = title
+            dialogMessage = "Original: $baseUrl"
         }.also(screen::addPreference)
     }
 
-    //  TAMBAHAN: Fungsi untuk resize gambar
-    protected fun resizeImageUrl(originalUrl: String): String {
-        val resizeService = preferences.getString("image_resize_service", "")?.trim()
-        return if (!resizeService.isNullOrEmpty()) {
-            "$resizeService${originalUrl.replace(Regex("https?://"), "")}"
-        } else {
-            originalUrl
-        }
-    }
-
-    //  TAMBAHAN: Override pageListParse agar pakai resizeImageUrl
     override fun pageListParse(document: Document): List<Page> {
         countViews(document)
 
         val chapterUrl = document.location()
+        val resizeService = preferences.getString("image_resize_service", "")?.trim()
+
         val htmlPages = document.select(pageSelector)
             .filterNot { it.imgAttr().isEmpty() }
-            .mapIndexed { i, img -> Page(i, chapterUrl, resizeImageUrl(img.imgAttr())) }
+            .mapIndexed { i, img ->
+                val imageUrl = img.imgAttr()
+                val finalUrl = if (!resizeService.isNullOrEmpty()) "$resizeService$imageUrl" else imageUrl
+                Page(i, chapterUrl, finalUrl)
+            }
 
         // Some sites also loads pages via javascript
-        if (htmlPages.isNotEmpty()) { return htmlPages }
+        if (htmlPages.isNotEmpty()) {
+            return htmlPages
+        }
 
         val docString = document.toString()
         val imageListJson = JSON_IMAGE_LIST_REGEX.find(docString)?.destructured?.toList()?.get(0).orEmpty()
@@ -121,15 +119,13 @@ abstract class MangaThemesia(
             emptyList()
         }
         val scriptPages = imageList.mapIndexed { i, jsonEl ->
-            Page(i, chapterUrl, resizeImageUrl(jsonEl.jsonPrimitive.content))
+            val imageUrl = jsonEl.jsonPrimitive.content
+            val finalUrl = if (!resizeService.isNullOrEmpty()) "$resizeService$imageUrl" else imageUrl
+            Page(i, chapterUrl, finalUrl)
         }
 
         return scriptPages
     }
-
-    // ————————————————————————————————————————————————————————————————————————
-    // SISANYA TETAP SAMA SEPERTI KODE ASLI
-    // ————————————————————————————————————————————————————————————————————————
 
     // Popular (Search with popular order and nothing else)
     override fun popularMangaRequest(page: Int) = searchMangaRequest(page, "", popularFilter)
@@ -683,7 +679,7 @@ abstract class MangaThemesia(
     companion object {
         const val URL_SEARCH_PREFIX = "url:"
 
-        // More info:  https://issuetracker.google.com/issues/36970498  
+        // More info:  https://issuetracker.google.com/issues/36970498
         private val MANGA_PAGE_ID_REGEX = "post_id\\s*:\\s*(\\d+)\\}".toRegex()
         private val CHAPTER_PAGE_ID_REGEX = "chapter_id\\s*=\\s*(\\d+);".toRegex()
 
