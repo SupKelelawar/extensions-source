@@ -50,6 +50,9 @@ abstract class MangaThemesia(
 
     protected open val json: Json by injectLazy()
 
+    // Tambahkan preferences delegate
+    private val preferences: SharedPreferences by getPreferencesLazy()
+
     override val supportsLatest = true
 
     override val client = network.cloudflareClient
@@ -88,7 +91,7 @@ abstract class MangaThemesia(
         }.also(screen::addPreference)
     }
 
-    // 🔥 TAMBAHAN: Fungsi untuk resize gambar
+    // TAMBAHAN: Fungsi untuk resize gambar
     protected fun resizeImageUrl(originalUrl: String): String {
         val resizeService = preferences.getString("image_resize_service", "")?.trim()
         return if (!resizeService.isNullOrEmpty()) {
@@ -98,7 +101,6 @@ abstract class MangaThemesia(
         }
     }
 
-    // 🔥 TAMBAHAN: Override pageListParse agar pakai resizeImageUrl
     override fun pageListParse(document: Document): List<Page> {
         countViews(document)
 
@@ -412,8 +414,6 @@ abstract class MangaThemesia(
 
     // Pages
     open val pageSelector = "div#readerarea img"
-
-    // Note: pageListParse sudah di-override di atas untuk resize gambar
 
     override fun imageRequest(page: Page): Request {
         val newHeaders = headersBuilder()
