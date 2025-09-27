@@ -110,7 +110,6 @@ abstract class MangaThemesiaAlt(
         }
     }
 
-    // cache in preference for webview urls
     private var SharedPreferences.urlMapCache: Map<String, String>
         get(): Map<String, String> {
             val value = getString("url_map_cache", "{}")!!
