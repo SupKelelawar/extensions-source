@@ -72,9 +72,6 @@ abstract class MangaThemesia(
 
     open val projectPageString = "/project"
 
-    // 🔥 TAMBAHAN: Preferences
-    protected val preferences by getPreferencesLazy()
-
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         EditTextPreference(screen.context).apply {
             key = "custom_domain"
