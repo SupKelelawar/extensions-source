@@ -38,7 +38,7 @@ import java.util.Locale
 
 // Formerly WPMangaStream & WPMangaReader -> MangaThemesia
 abstract class MangaThemesia(
-    name: String,
+    override val name: String,
     private val baseUrlString: String,
     final override val lang: String,
     val mangaUrlDirectory: String = "/manga",
@@ -91,7 +91,7 @@ abstract class MangaThemesia(
         }.also(screen::addPreference)
     }
 
-    // TAMBAHAN: Fungsi untuk resize gambar
+    //  TAMBAHAN: Fungsi untuk resize gambar
     protected fun resizeImageUrl(originalUrl: String): String {
         val resizeService = preferences.getString("image_resize_service", "")?.trim()
         return if (!resizeService.isNullOrEmpty()) {
@@ -101,6 +101,7 @@ abstract class MangaThemesia(
         }
     }
 
+    //  TAMBAHAN: Override pageListParse agar pakai resizeImageUrl
     override fun pageListParse(document: Document): List<Page> {
         countViews(document)
 
