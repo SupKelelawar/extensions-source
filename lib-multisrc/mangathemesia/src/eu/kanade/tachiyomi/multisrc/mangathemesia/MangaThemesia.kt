@@ -1,3 +1,4 @@
+```kotlin
 package eu.kanade.tachiyomi.multisrc.mangathemesia
 
 import android.content.SharedPreferences
@@ -39,15 +40,14 @@ import java.util.Locale
 // Formerly WPMangaStream & WPMangaReader -> MangaThemesia
 abstract class MangaThemesia(
     name: String,
-    // HAPUS override val baseUrl: String dari CONSTRUCTOR
-    val baseUrl: String, // <-- jadikan biasa, nanti override
+    private val baseUrlString: String,
     final override val lang: String,
     val mangaUrlDirectory: String = "/manga",
     val dateFormat: SimpleDateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale.US),
 ) : ParsedHttpSource(), ConfigurableSource {
 
     // Simpan baseUrl asli dari constructor
-    private val originalBaseUrl = baseUrl
+    private val originalBaseUrl = baseUrlString
 
     protected open val json: Json by injectLazy()
 
@@ -80,7 +80,7 @@ abstract class MangaThemesia(
         EditTextPreference(screen.context).apply {
             key = "custom_domain"
             title = "Custom Domain"
-            summary = "Ganti domain utama (contoh: https://mangathemesia.site). Biarkan kosong untuk pakai default."
+            summary = "Ganti domain utama (contoh: https://mangathemesia.site ). Biarkan kosong untuk pakai default."
             setDefaultValue("")
         }.also(screen::addPreference)
 
@@ -686,7 +686,7 @@ abstract class MangaThemesia(
     companion object {
         const val URL_SEARCH_PREFIX = "url:"
 
-        // More info: https://issuetracker.google.com/issues/36970498 
+        // More info:  https://issuetracker.google.com/issues/36970498  
         private val MANGA_PAGE_ID_REGEX = "post_id\\s*:\\s*(\\d+)\\}".toRegex()
         private val CHAPTER_PAGE_ID_REGEX = "chapter_id\\s*=\\s*(\\d+);".toRegex()
 
