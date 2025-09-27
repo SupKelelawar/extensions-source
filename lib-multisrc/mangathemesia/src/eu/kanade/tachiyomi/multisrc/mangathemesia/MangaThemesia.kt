@@ -38,18 +38,28 @@ import java.util.Locale
 
 // Formerly WPMangaStream & WPMangaReader -> MangaThemesia
 abstract class MangaThemesia(
-    override val name: String,
-    override val baseUrl: String,
+    name: String,
+    // HAPUS override val baseUrl: String dari CONSTRUCTOR
+    val baseUrl: String, // <-- jadikan biasa, nanti override
     final override val lang: String,
     val mangaUrlDirectory: String = "/manga",
     val dateFormat: SimpleDateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale.US),
 ) : ParsedHttpSource(), ConfigurableSource {
+
+    // Simpan baseUrl asli dari constructor
+    private val originalBaseUrl = baseUrl
 
     protected open val json: Json by injectLazy()
 
     override val supportsLatest = true
 
     override val client = network.cloudflareClient
+
+    // Gunakan override untuk ganti baseUrl berdasarkan preferensi
+    override val baseUrl: String
+        get() = preferences.getString("custom_domain", originalBaseUrl)?.trim()?.let { domain ->
+            if (domain.isNotEmpty()) domain else originalBaseUrl
+        } ?: originalBaseUrl
 
     override fun headersBuilder() = super.headersBuilder()
         .set("Referer", "$baseUrl/")
@@ -63,6 +73,7 @@ abstract class MangaThemesia(
 
     open val projectPageString = "/project"
 
+    // 🔥 TAMBAHAN: Preferences
     protected val preferences by getPreferencesLazy()
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
@@ -81,11 +92,7 @@ abstract class MangaThemesia(
         }.also(screen::addPreference)
     }
 
-    override val baseUrl: String
-        get() = preferences.getString("custom_domain", this@MangaThemesia.baseUrl)?.trim()?.let { domain ->
-            if (domain.isNotEmpty()) domain else this@MangaThemesia.baseUrl
-        } ?: this@MangaThemesia.baseUrl
-
+    // 🔥 TAMBAHAN: Fungsi untuk resize gambar
     protected fun resizeImageUrl(originalUrl: String): String {
         val resizeService = preferences.getString("image_resize_service", "")?.trim()
         return if (!resizeService.isNullOrEmpty()) {
@@ -95,6 +102,7 @@ abstract class MangaThemesia(
         }
     }
 
+    // 🔥 TAMBAHAN: Override pageListParse agar pakai resizeImageUrl
     override fun pageListParse(document: Document): List<Page> {
         countViews(document)
 
@@ -103,6 +111,7 @@ abstract class MangaThemesia(
             .filterNot { it.imgAttr().isEmpty() }
             .mapIndexed { i, img -> Page(i, chapterUrl, resizeImageUrl(img.imgAttr())) }
 
+        // Some sites also loads pages via javascript
         if (htmlPages.isNotEmpty()) { return htmlPages }
 
         val docString = document.toString()
@@ -119,9 +128,15 @@ abstract class MangaThemesia(
         return scriptPages
     }
 
+    // ————————————————————————————————————————————————————————————————————————
+    // SISANYA TETAP SAMA SEPERTI KODE ASLI
+    // ————————————————————————————————————————————————————————————————————————
+
+    // Popular (Search with popular order and nothing else)
     override fun popularMangaRequest(page: Int) = searchMangaRequest(page, "", popularFilter)
     override fun popularMangaParse(response: Response) = searchMangaParse(response)
 
+    // Latest (Search with update order and nothing else)
     override fun latestUpdatesRequest(page: Int) = searchMangaRequest(page, "", latestFilter)
     override fun latestUpdatesParse(response: Response) = searchMangaParse(response)
 
