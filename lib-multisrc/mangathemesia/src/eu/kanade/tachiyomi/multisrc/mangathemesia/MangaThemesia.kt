@@ -1,4 +1,3 @@
-```kotlin
 package eu.kanade.tachiyomi.multisrc.mangathemesia
 
 import android.content.SharedPreferences
