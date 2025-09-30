@@ -217,6 +217,7 @@ class KomikavNet : ParsedHttpSource(), ConfigurableSource {
         return now - (number * multiplier)
     }
 
+    // gambar chapter
     override fun pageListParse(document: Document): List<Page> {
         val service = preferences.getString("resize_service_url", "") ?: ""
         return document.select("img.imgku")
