@@ -1,0 +1,54 @@
+name: Unpack ZIP & Commit to Repo
+
+on:
+  workflow_dispatch:
+    inputs:
+      zip_file_name:
+        description: 'Nama file ZIP yang akan di-unpack'
+        required: true
+        default: 'ngomik.zip'
+        type: string
+      extract_destination:
+        description: 'Folder tujuan ekstraksi'
+        required: true
+        default: './extracted'
+        type: string
+  push:
+    paths:
+      - 'ngomik.zip'
+
+env:
+  ZIP_FILE: ${{ github.event.inputs.zip_file_name || 'ngomik.zip' }}
+  EXTRACT_DESTINATION: ${{ github.event.inputs.extract_destination || './extracted' }}
+
+jobs:
+  unpack-and-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create destination directory
+        run: mkdir -p ${{ env.EXTRACT_DESTINATION }}
+
+      - name: Unzip file to destination
+        run: unzip -o ${{ env.ZIP_FILE }} -d ${{ env.EXTRACT_DESTINATION }}
+
+      - name: List extracted contents
+        run: ls -la ${{ env.EXTRACT_DESTINATION }}
+
+      - name: Set git config
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit extracted files
+        run: |
+          git add .
+          git commit -m "Unpack ${{ env.ZIP_FILE }} to ${{ env.EXTRACT_DESTINATION }}"
+        continue-on-error: true
+
+      - name: Push changes
+        uses: ad-m/github-push-action@v0.8.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}

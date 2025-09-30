@@ -1,8 +1,12 @@
 package eu.kanade.tachiyomi.multisrc.mangathemesia
 
+import android.content.SharedPreferences
+import androidx.preference.EditTextPreference
+import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.lib.i18n.Intl
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
+import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
@@ -11,6 +15,7 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.utils.getPreferencesLazy
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
@@ -34,17 +39,27 @@ import java.util.Locale
 // Formerly WPMangaStream & WPMangaReader -> MangaThemesia
 abstract class MangaThemesia(
     override val name: String,
-    override val baseUrl: String,
+    private val baseUrlString: String,
     final override val lang: String,
     val mangaUrlDirectory: String = "/manga",
     val dateFormat: SimpleDateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale.US),
-) : ParsedHttpSource() {
+) : ParsedHttpSource(), ConfigurableSource {
+
+    // Simpan baseUrl asli dari constructor
+    private val originalBaseUrl = baseUrlString
 
     protected open val json: Json by injectLazy()
+
+    private val preferences: SharedPreferences by getPreferencesLazy()
 
     override val supportsLatest = true
 
     override val client = network.cloudflareClient
+
+    override val baseUrl: String
+        get() = preferences.getString("custom_domain", originalBaseUrl)?.trim()?.let { domain ->
+            if (domain.isNotEmpty()) domain else originalBaseUrl
+        } ?: originalBaseUrl
 
     override fun headersBuilder() = super.headersBuilder()
         .set("Referer", "$baseUrl/")
@@ -57,6 +72,60 @@ abstract class MangaThemesia(
     )
 
     open val projectPageString = "/project"
+
+    override fun setupPreferenceScreen(screen: PreferenceScreen) {
+        EditTextPreference(screen.context).apply {
+            key = "custom_domain"
+            title = "Ganti Domain"
+            summary = "Ganti domain untuk ekstensi ini"
+            setDefaultValue("")
+            dialogTitle = title
+            dialogMessage = "Original: $baseUrl"
+        }.also(screen::addPreference)
+
+        EditTextPreference(screen.context).apply {
+            key = "image_resize_service"
+            title = "Image Resize Service"
+            summary = "Masukkan URL layanan resize gambar"
+            setDefaultValue("")
+            dialogTitle = title
+        }.also(screen::addPreference)
+    }
+
+    override fun pageListParse(document: Document): List<Page> {
+        countViews(document)
+
+        val chapterUrl = document.location()
+        val resizeService = preferences.getString("image_resize_service", "")?.trim()
+
+        val htmlPages = document.select(pageSelector)
+            .filterNot { it.imgAttr().isEmpty() }
+            .mapIndexed { i, img ->
+                val imageUrl = img.imgAttr()
+                val finalUrl = if (!resizeService.isNullOrEmpty()) "$resizeService$imageUrl" else imageUrl
+                Page(i, chapterUrl, finalUrl)
+            }
+
+        // Some sites also loads pages via javascript
+        if (htmlPages.isNotEmpty()) {
+            return htmlPages
+        }
+
+        val docString = document.toString()
+        val imageListJson = JSON_IMAGE_LIST_REGEX.find(docString)?.destructured?.toList()?.get(0).orEmpty()
+        val imageList = try {
+            json.parseToJsonElement(imageListJson).jsonArray
+        } catch (_: IllegalArgumentException) {
+            emptyList()
+        }
+        val scriptPages = imageList.mapIndexed { i, jsonEl ->
+            val imageUrl = jsonEl.jsonPrimitive.content
+            val finalUrl = if (!resizeService.isNullOrEmpty()) "$resizeService$imageUrl" else imageUrl
+            Page(i, chapterUrl, finalUrl)
+        }
+
+        return scriptPages
+    }
 
     // Popular (Search with popular order and nothing else)
     override fun popularMangaRequest(page: Int) = searchMangaRequest(page, "", popularFilter)
@@ -343,31 +412,6 @@ abstract class MangaThemesia(
     // Pages
     open val pageSelector = "div#readerarea img"
 
-    override fun pageListParse(document: Document): List<Page> {
-        countViews(document)
-
-        val chapterUrl = document.location()
-        val htmlPages = document.select(pageSelector)
-            .filterNot { it.imgAttr().isEmpty() }
-            .mapIndexed { i, img -> Page(i, chapterUrl, img.imgAttr()) }
-
-        // Some sites also loads pages via javascript
-        if (htmlPages.isNotEmpty()) { return htmlPages }
-
-        val docString = document.toString()
-        val imageListJson = JSON_IMAGE_LIST_REGEX.find(docString)?.destructured?.toList()?.get(0).orEmpty()
-        val imageList = try {
-            json.parseToJsonElement(imageListJson).jsonArray
-        } catch (_: IllegalArgumentException) {
-            emptyList()
-        }
-        val scriptPages = imageList.mapIndexed { i, jsonEl ->
-            Page(i, chapterUrl, jsonEl.jsonPrimitive.content)
-        }
-
-        return scriptPages
-    }
-
     override fun imageRequest(page: Page): Request {
         val newHeaders = headersBuilder()
             .set("Accept", "image/avif,image/webp,image/png,image/jpeg,*/*")
@@ -635,7 +679,7 @@ abstract class MangaThemesia(
     companion object {
         const val URL_SEARCH_PREFIX = "url:"
 
-        // More info: https://issuetracker.google.com/issues/36970498
+        // More info:  https://issuetracker.google.com/issues/36970498
         private val MANGA_PAGE_ID_REGEX = "post_id\\s*:\\s*(\\d+)\\}".toRegex()
         private val CHAPTER_PAGE_ID_REGEX = "chapter_id\\s*=\\s*(\\d+);".toRegex()
 

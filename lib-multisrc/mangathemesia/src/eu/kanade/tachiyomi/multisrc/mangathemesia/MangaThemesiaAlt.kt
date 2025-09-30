@@ -32,7 +32,8 @@ abstract class MangaThemesiaAlt(
     protected open val listUrl = "$mangaUrlDirectory/list-mode/"
     protected open val listSelector = "div#content div.soralist ul li a.series"
 
-    protected val preferences by getPreferencesLazy {
+    // Tambahkan delegate untuk preferences
+    private val altPreferences: SharedPreferences by getPreferencesLazy {
         if (contains("__random_part_cache")) {
             edit().remove("__random_part_cache").apply()
         }
@@ -42,6 +43,10 @@ abstract class MangaThemesiaAlt(
     }
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
+        // Panggil setup preferences dari parent class dulu
+        super.setupPreferenceScreen(screen)
+        
+        // Tambahkan preference khusus untuk Alt
         SwitchPreferenceCompat(screen.context).apply {
             key = randomUrlPrefKey
             title = intl["pref_dynamic_url_title"]
@@ -50,7 +55,7 @@ abstract class MangaThemesiaAlt(
         }.also(screen::addPreference)
     }
 
-    private fun getRandomUrlPref() = preferences.getBoolean(randomUrlPrefKey, true)
+    private fun getRandomUrlPref() = altPreferences.getBoolean(randomUrlPrefKey, true)
 
     private val mutex = Mutex()
     private var cachedValue: SoftReference<Map<String, String>>? = null
@@ -74,7 +79,7 @@ abstract class MangaThemesiaAlt(
             fetchUrlMap().also {
                 cachedValue = SoftReference(it)
                 fetchTime = System.currentTimeMillis()
-                preferences.urlMapCache = it
+                altPreferences.urlMapCache = it
             }
         }
     }
@@ -99,13 +104,12 @@ abstract class MangaThemesiaAlt(
 
     protected fun getUrlMap(cached: Boolean = false): Map<String, String> {
         return if (cached && cachedValue == null) {
-            preferences.urlMapCache
+            altPreferences.urlMapCache
         } else {
             runBlocking { getUrlMapInternal() }
         }
     }
 
-    // cache in preference for webview urls
     private var SharedPreferences.urlMapCache: Map<String, String>
         get(): Map<String, String> {
             val value = getString("url_map_cache", "{}")!!
