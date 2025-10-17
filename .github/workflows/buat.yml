@@ -13,7 +13,7 @@ on:
         required: true
       git-repo:
         description: Repositori Git (Opsional, default ke <nama_pemilik>/extensions-source)
-        default: '${{ github.repository_owner }}/extensions-source'  # Diubah ke extensions-source
+        default: ''  # Kosongkan default di sini
         required: false
       git-ref:
         description: Referensi Git (Opsional, default ke master)
@@ -34,7 +34,9 @@ jobs:
         run: |
           set -e
           if [[ -z "${{ env.REPO }}" ]]; then
-            echo "REPO=${{ github.repository_owner }}/extensions-source" >> $GITHUB_ENV  # Diubah ke extensions-source
+            echo "REPO=${{ github.repository_owner }}/extensions-source" >> $GITHUB_ENV
+          else
+            echo "REPO=${{ env.REPO }}" >> $GITHUB_ENV
           fi
       - name: Klon Repositori (Terbaru)
         uses: actions/checkout@v4
