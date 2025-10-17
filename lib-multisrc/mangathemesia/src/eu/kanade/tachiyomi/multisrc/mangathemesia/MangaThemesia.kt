@@ -1,8 +1,11 @@
 package eu.kanade.tachiyomi.multisrc.mangathemesia
 
+import androidx.preference.EditTextPreference
+import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.lib.i18n.Intl
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
+import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
@@ -11,6 +14,7 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.utils.getPreferencesLazy
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
@@ -38,16 +42,18 @@ abstract class MangaThemesia(
     final override val lang: String,
     val mangaUrlDirectory: String = "/manga",
     val dateFormat: SimpleDateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale.US),
-) : ParsedHttpSource() {
+) : ParsedHttpSource(), ConfigurableSource {
 
     protected open val json: Json by injectLazy()
+
+    protected val preferences by getPreferencesLazy()
 
     override val supportsLatest = true
 
     override val client = network.cloudflareClient
 
     override fun headersBuilder() = super.headersBuilder()
-        .set("Referer", "$baseUrl/")
+        .set("Referer", "${getCurrentDomain()}/")
 
     protected val intl = Intl(
         language = lang,
@@ -55,6 +61,57 @@ abstract class MangaThemesia(
         availableLanguages = setOf("en", "es"),
         classLoader = javaClass.classLoader!!,
     )
+
+    // ===== PREFERENCE KEYS =====
+    private val prefKeyDomain = "pref_custom_domain"
+    private val prefKeyImageResizeUrl = "pref_image_resize_url"
+
+    // ===== SETUP PREFERENCE SCREEN =====
+    override fun setupPreferenceScreen(screen: PreferenceScreen) {
+        // Preference untuk Custom Domain
+        EditTextPreference(screen.context).apply {
+            key = prefKeyDomain
+            title = "Custom Domain"
+            summary = "Masukkan domain (contoh: mangadomain.com)"
+            setDefaultValue("")
+            dialogTitle = "Ubah Domain"
+            positiveButtonText = "OK"
+        }.also(screen::addPreference)
+
+        // Preference untuk URL Resize Service
+        EditTextPreference(screen.context).apply {
+            key = prefKeyImageResizeUrl
+            title = "URL Resize Service"
+            summary = "Masukkan URL resize (contoh: https://imgproxy.example.com/unsafe/800x0/{imageUrl})"
+            setDefaultValue("")
+            dialogTitle = "URL Resize Service"
+            positiveButtonText = "OK"
+        }.also(screen::addPreference)
+    }
+
+    // ===== HELPER FUNCTIONS =====
+    protected fun getCurrentDomain(): String {
+        val customDomain = preferences.getString(prefKeyDomain, "")
+        return if (customDomain.isNullOrBlank()) {
+            baseUrl
+        } else {
+            val domain = customDomain!!.trim()
+            if (domain.startsWith("http")) domain else "https://$domain"
+        }
+    }
+
+    protected fun getImageResizeUrl(): String {
+        return preferences.getString(prefKeyImageResizeUrl, "") ?: ""
+    }
+
+    protected fun applyImageResize(imageUrl: String): String {
+        val resizeUrl = getImageResizeUrl()
+        return if (resizeUrl.isNotBlank()) {
+            resizeUrl.replace("{imageUrl}", imageUrl)
+        } else {
+            imageUrl
+        }
+    }
 
     open val projectPageString = "/project"
 
@@ -82,14 +139,13 @@ abstract class MangaThemesia(
                 .apply { this.url = "$mangaUrlDirectory/$mangaPath/" },
         )
             .map {
-                // Isn't set in returned manga
                 it.url = "$mangaUrlDirectory/$mangaPath/"
                 MangasPage(listOf(it), false)
             }
     }
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        val url = baseUrl.toHttpUrl().newBuilder()
+        val url = getCurrentDomain().toHttpUrl().newBuilder()
             .addPathSegment(mangaUrlDirectory.substring(1))
             .addQueryParameter("title", query)
             .addQueryParameter("page", page.toString())
@@ -119,7 +175,6 @@ abstract class MangaThemesia(
                             url.addQueryParameter("genre[]", value)
                         }
                 }
-                // if site has project page, default value "hasProjectPage" = false
                 is ProjectFilter -> {
                     if (filter.selectedValue() == "project-filter-on") {
                         url.setPathSegment(0, projectPageString.substring(1))
@@ -244,13 +299,11 @@ abstract class MangaThemesia(
             artist = seriesDetails.selectFirst(seriesArtistSelector)?.ownText().removeEmptyPlaceholder()
             author = seriesDetails.selectFirst(seriesAuthorSelector)?.ownText().removeEmptyPlaceholder()
             description = seriesDetails.select(seriesDescriptionSelector).joinToString("\n") { it.text() }.trim()
-            // Add alternative name to manga description
             val altName = seriesDetails.selectFirst(seriesAltNameSelector)?.ownText().takeIf { it.isNullOrBlank().not() }
             altName?.let {
                 description = "$description\n\n$altNamePrefix$altName".trim()
             }
             val genres = seriesDetails.select(seriesGenreSelector).map { it.text() }.toMutableList()
-            // Add series type (manga/manhwa/manhua/other) to genre
             seriesDetails.selectFirst(seriesTypeSelector)?.ownText().takeIf { it.isNullOrBlank().not() }?.let { genres.add(it) }
             genre = genres.map { genre ->
                 genre.lowercase(Locale.forLanguageTag(lang)).replaceFirstChar { char ->
@@ -308,8 +361,6 @@ abstract class MangaThemesia(
 
         val chapters = document.select(chapterListSelector()).map { chapterFromElement(it) }
 
-        // Add timestamp to latest chapter, taken from "Updated On".
-        // So source which not provide chapter timestamp will have at least one
         if (chapters.isNotEmpty() && chapters.first().date_upload == 0L) {
             val date = document
                 .select(".listinfo time[itemprop=dateModified], .fmed:contains(update) time, span:contains(update) time")
@@ -349,9 +400,11 @@ abstract class MangaThemesia(
         val chapterUrl = document.location()
         val htmlPages = document.select(pageSelector)
             .filterNot { it.imgAttr().isEmpty() }
-            .mapIndexed { i, img -> Page(i, chapterUrl, img.imgAttr()) }
+            .mapIndexed { i, img -> 
+                val imageUrl = applyImageResize(img.imgAttr())
+                Page(i, chapterUrl, imageUrl) 
+            }
 
-        // Some sites also loads pages via javascript
         if (htmlPages.isNotEmpty()) { return htmlPages }
 
         val docString = document.toString()
@@ -362,7 +415,8 @@ abstract class MangaThemesia(
             emptyList()
         }
         val scriptPages = imageList.mapIndexed { i, jsonEl ->
-            Page(i, chapterUrl, jsonEl.jsonPrimitive.content)
+            val imageUrl = applyImageResize(jsonEl.jsonPrimitive.content)
+            Page(i, chapterUrl, imageUrl)
         }
 
         return scriptPages
@@ -377,10 +431,6 @@ abstract class MangaThemesia(
         return GET(page.imageUrl!!, newHeaders)
     }
 
-    /**
-     * Set it to false if you want to disable the extension reporting the view count
-     * back to the source website through admin-ajax.php.
-     */
     protected open val sendViewCount: Boolean = true
 
     protected open fun countViewsRequest(document: Document): Request? {
@@ -400,14 +450,9 @@ abstract class MangaThemesia(
             .set("Referer", document.location())
             .build()
 
-        return POST("$baseUrl/wp-admin/admin-ajax.php", newHeaders, formBody)
+        return POST("${getCurrentDomain()}/wp-admin/admin-ajax.php", newHeaders, formBody)
     }
 
-    /**
-     * Send the view count request to the sites endpoint.
-     *
-     * @param document The response document with the wp-manga data
-     */
     protected open fun countViews(document: Document) {
         if (!sendViewCount) {
             return
@@ -562,17 +607,8 @@ abstract class MangaThemesia(
         return FilterList(filters)
     }
 
-    // Helpers
-    /**
-     * Given some string which represents an http urlString, returns path for a manga
-     * which can be used to fetch its details at "$baseUrl$mangaUrlDirectory/$mangaPath"
-     *
-     * @param urlString: String
-     *
-     * @returns Path of a manga, or null if none could be found
-     */
     protected open fun mangaPathFromUrl(urlString: String): String? {
-        val baseMangaUrl = "$baseUrl$mangaUrlDirectory".toHttpUrl()
+        val baseMangaUrl = "${getCurrentDomain()}$mangaUrlDirectory".toHttpUrl()
         val url = urlString.toHttpUrlOrNull() ?: return null
 
         val isMangaUrl = (baseMangaUrl.host == url.host && pathLengthIs(url, 2) && url.pathSegments[0] == baseMangaUrl.pathSegments[0])
@@ -586,7 +622,6 @@ abstract class MangaThemesia(
                 throw IllegalStateException("HTTP error ${response.code}")
             } else if (response.isSuccessful) {
                 val links = response.asJsoup().select("a[itemprop=item]")
-                //  near the top of page: home > manga > current chapter
                 if (links.size == 3) {
                     val newUrl = links[1].attr("href").toHttpUrlOrNull() ?: return null
                     val isNewMangaUrl = (baseMangaUrl.host == newUrl.host && pathLengthIs(newUrl, 2) && newUrl.pathSegments[0] == baseMangaUrl.pathSegments[0])
@@ -621,7 +656,6 @@ abstract class MangaThemesia(
 
     protected open fun Elements.imgAttr(): String = this.first()!!.imgAttr()
 
-    // Unused
     override fun popularMangaSelector(): String = throw UnsupportedOperationException()
     override fun popularMangaFromElement(element: Element): SManga = throw UnsupportedOperationException()
     override fun popularMangaNextPageSelector(): String? = throw UnsupportedOperationException()
@@ -635,7 +669,6 @@ abstract class MangaThemesia(
     companion object {
         const val URL_SEARCH_PREFIX = "url:"
 
-        // More info: https://issuetracker.google.com/issues/36970498
         private val MANGA_PAGE_ID_REGEX = "post_id\\s*:\\s*(\\d+)\\}".toRegex()
         private val CHAPTER_PAGE_ID_REGEX = "chapter_id\\s*=\\s*(\\d+);".toRegex()
 
