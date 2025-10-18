@@ -1,6 +1,10 @@
 package eu.kanade.tachiyomi.extension.id.kc
 
+import android.app.Application
 import eu.kanade.tachiyomi.network.GET
+import androidx.preference.EditTextPreference
+import androidx.preference.PreferenceScreen
+import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.Page
@@ -10,6 +14,8 @@ import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 import okhttp3.Request
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
@@ -18,7 +24,7 @@ import java.util.Calendar
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-class KC : ParsedHttpSource() {
+class KC : ParsedHttpSource(), ConfigurableSource {
     override val name = "KC"
     override val baseUrl = "https://komik-cast.cc"
     override val lang = "id"
@@ -29,6 +35,11 @@ class KC : ParsedHttpSource() {
         .connectTimeout(15, TimeUnit.SECONDS)
         .build()
     private val dateFormat: SimpleDateFormat = SimpleDateFormat("MMM d, yyyy", Locale.US)
+    
+    private val preferences = Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
+
+    override val baseUrl: String
+    get() = preferences.getString("overrideBaseUrl", defaultBaseUrl)!!
 
     // Popular & latest
     override fun popularMangaRequest(page: Int): Request = GET("$baseUrl/komik-list/?order=popular&page=$page", headers)
@@ -125,12 +136,47 @@ class KC : ParsedHttpSource() {
 
     // Pages
     override fun pageListParse(document: Document): List<Page> {
-        val pages = mutableListOf<Page>()
-        document.select("div.max-w-5xl img").forEachIndexed { i, element ->
-            val url = element.attr("src")
-            if (url.isNotEmpty()) pages.add(Page(i + 1, "", url))
+        val service = preferences.getString("resize_service_url", "") ?: ""
+        return document.select("div.max-w-5xl img")
+        .mapIndexedNotNull {
+            i, img ->
+            val src = img.attr("src").trim()
+            if (src.isBlank() || src.contains("banner")) {
+                null
+            } else {
+                val finalUrl = if (service.isEmpty()) src else service + src
+                Page(i, "", finalUrl)
+            }
         }
-        return pages
+    }
+    
+    override fun setupPreferenceScreen(screen: PreferenceScreen) {
+        val resizeServicePref = EditTextPreference(screen.context).apply {
+            key = "resize_service_url"
+            title = "Resize Service URL (Pages)"
+            summary = "Masukkan URL layanan resize gambar untuk halaman (page list)."
+            setDefaultValue(null)
+            dialogTitle = "Resize Service URL"
+        }
+        screen.addPreference(resizeServicePref)
+
+        val baseUrlPref = EditTextPreference(screen.context).apply {
+            key = "overrideBaseUrl"
+            title = "Ubah Domain"
+            summary = "Update domain untuk ekstensi ini"
+            setDefaultValue(baseUrl)
+            dialogTitle = "Update domain untuk ekstensi ini"
+            dialogMessage = "Original: $baseUrl"
+
+            setOnPreferenceChangeListener {
+                _, newValue ->
+                val newUrl = newValue as String
+                preferences.edit().putString("overrideBaseUrl", newUrl).apply()
+                summary = "Current domain: $newUrl"
+                true
+            }
+        }
+        screen.addPreference(baseUrlPref)
     }
 
     override fun imageUrlParse(document: Document): String = throw UnsupportedOperationException()
