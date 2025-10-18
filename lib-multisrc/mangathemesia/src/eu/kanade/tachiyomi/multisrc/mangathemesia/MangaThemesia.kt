@@ -80,6 +80,7 @@ abstract class MangaThemesia(
             title = "Image Resize Service"
             dialogTitle = title
             summary = "Masukkan URL layanan resize"
+            dialogMessage = "Contoh: https://yttaaja.netlify.app/api/index/?w=300&q=75&url="
             setDefaultValue("")
         }.also(screen::addPreference)
     }
