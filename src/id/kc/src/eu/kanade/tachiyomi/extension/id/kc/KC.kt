@@ -1,49 +1,58 @@
 package eu.kanade.tachiyomi.extension.id.kc
 
 import android.app.Application
-import eu.kanade.tachiyomi.network.GET
 import androidx.preference.EditTextPreference
 import androidx.preference.PreferenceScreen
+import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.interceptor.rateLimit
 import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.Page
-import eu.kanade.tachiyomi.network.interceptor.rateLimit
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import okhttp3.Request
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 class KC : ParsedHttpSource(), ConfigurableSource {
+
     override val name = "KC"
-    override val baseUrl = "https://komik-cast.cc"
+    private val defaultBaseUrl = "https://komik-cast.cc"
     override val lang = "id"
     override val supportsLatest = true
+
+    private val preferences by lazy {
+        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
+    }
+
+    override val baseUrl: String
+        get() = preferences.getString("overrideBaseUrl", defaultBaseUrl)!!
+
     override val client: OkHttpClient = super.client.newBuilder()
         .rateLimit(4)
         .readTimeout(30, TimeUnit.SECONDS)
         .connectTimeout(15, TimeUnit.SECONDS)
         .build()
-    private val dateFormat: SimpleDateFormat = SimpleDateFormat("MMM d, yyyy", Locale.US)
-    
-    private val preferences = Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
 
-    override val baseUrl: String
-    get() = preferences.getString("overrideBaseUrl", defaultBaseUrl)!!
+    private val dateFormat: SimpleDateFormat = SimpleDateFormat("MMM d, yyyy", Locale.US)
 
     // Popular & latest
-    override fun popularMangaRequest(page: Int): Request = GET("$baseUrl/komik-list/?order=popular&page=$page", headers)
-    override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/komik-list/?order=update&page=$page", headers)
+    override fun popularMangaRequest(page: Int): Request =
+        GET("$baseUrl/komik-list/?order=popular&page=$page", headers)
+
+    override fun latestUpdatesRequest(page: Int): Request =
+        GET("$baseUrl/komik-list/?order=update&page=$page", headers)
+
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val url = "$baseUrl/search/".toHttpUrl().newBuilder()
         url.addQueryParameter("query", query)
@@ -58,9 +67,11 @@ class KC : ParsedHttpSource(), ConfigurableSource {
     override fun searchMangaSelector() = popularMangaSelector()
 
     // Next page selectors
-    override fun popularMangaNextPageSelector(): String? = "div[role=navigation] div.flex.justify-between.flex-1 a:contains(Next)"
+    override fun popularMangaNextPageSelector(): String? =
+        "div[role=navigation] div.flex.justify-between.flex-1 a:contains(Next)"
+
     override fun latestUpdatesNextPageSelector(): String? = popularMangaNextPageSelector()
-    override fun searchMangaNextPageSelector(): String? = popularMangaNextPageSelector() // Sama dengan popular
+    override fun searchMangaNextPageSelector(): String? = popularMangaNextPageSelector()
 
     override fun popularMangaFromElement(element: Element): SManga {
         val manga = SManga.create()
@@ -92,12 +103,13 @@ class KC : ParsedHttpSource(), ConfigurableSource {
         manga.thumbnail_url = document.select("div.w-full img").attr("src")
         val genres = mutableListOf<String>()
         document.select("div.flex.flex-wrap a span").forEach { genres.add(it.text()) }
-        document.select(".text-sm.py-1.pb-2 span.font-medium").firstOrNull()?.let { 
-            genres.add(it.text()) 
+        document.select(".text-sm.py-1.pb-2 span.font-medium").firstOrNull()?.let {
+            genres.add(it.text())
         }
         manga.description = document.select("p.my-2").text() + "\n"
         manga.genre = genres.joinToString(", ")
-        val statusText = document.select("div.text-sm.py-1.pb-2 span.font-medium").getOrNull(1)?.text() ?: ""
+        val statusText =
+            document.select("div.text-sm.py-1.pb-2 span.font-medium").getOrNull(1)?.text() ?: ""
         manga.status = when {
             statusText.contains("Ongoing", true) -> SManga.ONGOING
             statusText.contains("Completed", true) -> SManga.COMPLETED
@@ -108,17 +120,19 @@ class KC : ParsedHttpSource(), ConfigurableSource {
 
     // Chapters
     override fun chapterListSelector() = "div.flex.flex-col.overflow-y-auto a"
+
     override fun chapterFromElement(element: Element): SChapter {
         val chapter = SChapter.create()
         chapter.setUrlWithoutDomain(element.attr("href"))
         chapter.name = element.select("div > p:first-child").text()
-        chapter.date_upload = element.select("div > p.text-xs").text().let { parseChapterDate(it) }
+        chapter.date_upload =
+            element.select("div > p.text-xs").text().let { parseChapterDate(it) }
         return chapter
     }
 
     private fun parseChapterDate(date: String): Long {
         return if (date.contains("yang lalu")) {
-            val value = date.split(' ')[0].toInt()
+            val value = date.split(' ')[0].toIntOrNull() ?: 0
             when {
                 "detik" in date -> Calendar.getInstance().apply { add(Calendar.SECOND, -value) }.timeInMillis
                 "menit" in date -> Calendar.getInstance().apply { add(Calendar.MINUTE, -value) }.timeInMillis
@@ -130,7 +144,11 @@ class KC : ParsedHttpSource(), ConfigurableSource {
                 else -> 0L
             }
         } else {
-            try { dateFormat.parse(date)?.time ?: 0 } catch (_: Exception) { 0L }
+            try {
+                dateFormat.parse(date)?.time ?: 0L
+            } catch (_: Exception) {
+                0L
+            }
         }
     }
 
@@ -138,24 +156,23 @@ class KC : ParsedHttpSource(), ConfigurableSource {
     override fun pageListParse(document: Document): List<Page> {
         val service = preferences.getString("resize_service_url", "") ?: ""
         return document.select("div.max-w-5xl img")
-        .mapIndexedNotNull {
-            i, img ->
-            val src = img.attr("src").trim()
-            if (src.isBlank() || src.contains("banner")) {
-                null
-            } else {
-                val finalUrl = if (service.isEmpty()) src else service + src
-                Page(i, "", finalUrl)
+            .mapIndexedNotNull { i, img ->
+                val src = img.attr("src").trim()
+                if (src.isBlank() || src.contains("banner")) {
+                    null
+                } else {
+                    val finalUrl = if (service.isEmpty()) src else service + src
+                    Page(i, "", finalUrl)
+                }
             }
-        }
     }
-    
+
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         val resizeServicePref = EditTextPreference(screen.context).apply {
             key = "resize_service_url"
             title = "Resize Service URL (Pages)"
-            summary = "Masukkan URL layanan resize gambar untuk halaman (page list)."
-            setDefaultValue(null)
+            summary = preferences.getString(key, "") ?: ""
+            setDefaultValue("")
             dialogTitle = "Resize Service URL"
         }
         screen.addPreference(resizeServicePref)
@@ -163,16 +180,15 @@ class KC : ParsedHttpSource(), ConfigurableSource {
         val baseUrlPref = EditTextPreference(screen.context).apply {
             key = "overrideBaseUrl"
             title = "Ubah Domain"
-            summary = "Update domain untuk ekstensi ini"
-            setDefaultValue(baseUrl)
+            summary = "Current domain: ${preferences.getString(key, defaultBaseUrl)}"
+            setDefaultValue(preferences.getString(key, defaultBaseUrl))
             dialogTitle = "Update domain untuk ekstensi ini"
-            dialogMessage = "Original: $baseUrl"
+            dialogMessage = "Original: $defaultBaseUrl"
 
-            setOnPreferenceChangeListener {
-                _, newValue ->
+            setOnPreferenceChangeListener { pref, newValue ->
                 val newUrl = newValue as String
-                preferences.edit().putString("overrideBaseUrl", newUrl).apply()
-                summary = "Current domain: $newUrl"
+                preferences.edit().putString(key, newUrl).apply()
+                pref.summary = "Current domain: $newUrl"
                 true
             }
         }
