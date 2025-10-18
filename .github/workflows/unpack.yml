@@ -1,0 +1,25 @@
+name: Extract File
+
+on:
+  workflow_dispatch:
+    inputs:
+      file_name:
+        description: 'Nama file yang akan diekstrak (misalnya: yourfile.zip)'
+        required: true
+        type: string
+      destination:
+        description: 'Folder tujuan ekstrak (misalnya: /path/to/target/folder)'
+        required: true
+        type: string
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract file
+        run: |
+          unzip ${{ inputs.file_name }} -d ${{ inputs.destination }}
