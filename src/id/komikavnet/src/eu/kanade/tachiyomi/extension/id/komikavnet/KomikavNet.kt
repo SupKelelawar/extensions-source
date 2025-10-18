@@ -1,4 +1,4 @@
-package eu.kanade.tachiyomi.extension.id.komikv
+package eu.kanade.tachiyomi.extension.id.komikavnet
 
 import android.app.Application
 import eu.kanade.tachiyomi.network.GET
@@ -21,9 +21,9 @@ import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
-class KomikAV : ParsedHttpSource(), ConfigurableSource {
+class KomikavNet : ParsedHttpSource(), ConfigurableSource {
 
-    override val name = "KomikAV"
+    override val name = "Komikavnet"
     private val defaultBaseUrl = "https://komikav.net"
     override val lang = "id"
     override val supportsLatest = true
