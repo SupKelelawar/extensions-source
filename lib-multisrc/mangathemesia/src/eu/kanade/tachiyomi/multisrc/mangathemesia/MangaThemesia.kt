@@ -39,7 +39,7 @@ import java.util.Locale
 // Formerly WPMangaStream & WPMangaReader -> MangaThemesia
 abstract class MangaThemesia(
     override val name: String,
-    override val baseUrl: String,
+    private val sourceBaseUrl: String,
     final override val lang: String,
     val mangaUrlDirectory: String = "/manga",
     val dateFormat: SimpleDateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale.US),
@@ -82,9 +82,9 @@ abstract class MangaThemesia(
     }
 
     override val baseUrl: String
-        get() = preferences.getString("custom_domain", this@MangaThemesia.baseUrl)?.trim()?.let { domain ->
-            if (domain.isNotEmpty()) domain else this@MangaThemesia.baseUrl
-        } ?: this@MangaThemesia.baseUrl
+        get() = preferences.getString("custom_domain", sourceBaseUrl)?.trim()?.let { domain ->
+            if (domain.isNotEmpty()) domain else sourceBaseUrl
+        } ?: sourceBaseUrl
 
     protected fun resizeImageUrl(originalUrl: String): String {
         val resizeService = preferences.getString("image_resize_service", "")?.trim()
