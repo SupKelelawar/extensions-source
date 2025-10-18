@@ -68,15 +68,18 @@ abstract class MangaThemesia(
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         EditTextPreference(screen.context).apply {
             key = "custom_domain"
-            title = "Custom Domain"
-            summary = "Ganti domain utama (contoh: https://mangathemesia.site). Biarkan kosong untuk pakai default."
+            title = "Ganti Domain"
+            dialogTitle = title
+            dialogMessage = "Original: $baseUrl"
+            summary = "Ganti domain utama"
             setDefaultValue("")
         }.also(screen::addPreference)
 
         EditTextPreference(screen.context).apply {
             key = "image_resize_service"
             title = "Image Resize Service"
-            summary = "Masukkan URL layanan resize (contoh: https://images.weserv.nl/?url=). Kosongkan untuk nonaktif."
+            dialogTitle = title
+            summary = "Masukkan URL layanan resize"
             setDefaultValue("")
         }.also(screen::addPreference)
     }
@@ -89,7 +92,7 @@ abstract class MangaThemesia(
     protected fun resizeImageUrl(originalUrl: String): String {
         val resizeService = preferences.getString("image_resize_service", "")?.trim()
         return if (!resizeService.isNullOrEmpty()) {
-            "$resizeService${originalUrl.replace(Regex("https?://"), "")}"
+            "$resizeService$originalUrl"
         } else {
             originalUrl
         }
